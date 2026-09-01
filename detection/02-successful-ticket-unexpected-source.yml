@@ -1,0 +1,27 @@
+title: Proxmox VE Successful Ticket Creation from Unexpected Source
+id: 9d4e5f6a-7b8c-4d1e-9f2a-3c5e7f9a1b2d
+status: experimental
+author: neeythann
+description: >
+  Detects a successful (HTTP 200) ticket creation on /api2/json/access/ticket
+  from a source IP that is not a known administrative host. On vulnerable
+  systems (libpve-access-control <= 8.0.3) the tfa-challenge bypass mints a
+  full root@pam ticket and returns 200 without a valid password.
+logsource:
+  category: webserver
+  product: proxmox
+detection:
+  selection:
+    cs-method: POST
+    cs-uri-stem|startswith: /api2/json/access/ticket
+    sc-status: 200
+  filter_known_admin:
+    c-ip:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+  condition: selection and not filter_known_admin
+falsepositives:
+  - Legitimate logins from non-whitelisted admin networks
+  - VPN or jump-host egress IPs
+level: high

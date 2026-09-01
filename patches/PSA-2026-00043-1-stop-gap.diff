@@ -1,0 +1,36 @@
+Official stop-gap mitigation for PSA-2026-00043-1 (2026-09-01) for EOL
+installations (libpve-access-control >= 7.0-7, < 8.0.4) that cannot upgrade.
+
+Adds a validation step to the affected code path in
+/usr/share/perl5/PVE/AccessControl.pm: every 'tfa-challenge' value must then
+be a valid, signed TFA challenge ticket, which an attacker cannot forge.
+Normal password logins and two-factor logins keep working.
+
+Applying (equivalent of the sed command in the advisory):
+
+    sed -i.bck 's/^\t# This is the 2nd factor, use the password for the OTP response.$/\tverify_ticket($tfa_challenge, 0, $username);\n\t# This is the 2nd factor, use the password for the OTP response./' /usr/share/perl5/PVE/AccessControl.pm
+
+    grep -n 'verify_ticket($tfa_challenge, 0, $username)' /usr/share/perl5/PVE/AccessControl.pm | wc -l
+
+    systemctl reload-or-restart pvedaemon pveproxy
+
+The grep command must print 3 (occurrences of the verify_ticket line in the
+file). If it prints anything else, the patch did not apply and the
+installation is still vulnerable. To undo the patch, restore the '.bck'
+backup file and restart both services again.
+
+Upgrading to a supported Proxmox VE release is the only durable fix.
+
+This is the same mitigation as the sed one-liner above, shown as a unified
+diff.
+
+--- a/PVE/AccessControl.pm
++++ b/PVE/AccessControl.pm
+@@ -739,6 +739,7 @@
+     if ($tfa_challenge) {
+     # This is the 2nd factor, use the password for the OTP response.
++    verify_ticket($tfa_challenge, 0, $username);
++    # This is the 2nd factor, use the password for the OTP response.
+     my $tfa_challenge = authenticate_2nd_new($username, $realm, $password, $tfa_challenge);
+     return wantarray ? ($username, $tfa_challenge) : $username;
+     }

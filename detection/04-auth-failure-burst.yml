@@ -1,0 +1,21 @@
+title: Proxmox VE Authentication Failure Burst on Ticket Endpoint
+id: 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+status: experimental
+author: neeythann
+description: >
+  Detects a burst of authentication failures on /api2/json/access/ticket
+  from a single source. The patched code path rejects the forged
+  tfa-challenge with 401 "authentication failure"; a burst of these from one
+  IP indicates active exploitation attempts against the bypass.
+logsource:
+  category: application
+  product: proxmox
+detection:
+  selection:
+    message|contains: "authentication failure"
+  condition: selection | count(rhost) > 10
+  timeframe: 5m
+falsepositives:
+  - Brute-force attempts against valid accounts
+  - Misconfigured clients
+level: medium

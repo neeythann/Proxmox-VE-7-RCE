@@ -1,0 +1,19 @@
+title: Proxmox VE Successful root@pam Authentication via API
+id: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+status: experimental
+author: neeythann
+description: >
+  Detects a successful authentication for root@pam reported by pveproxy
+  syslog. On vulnerable systems the tfa-challenge bypass logs
+  "successful auth for user 'root@pam'" without any prior password
+  verification.
+logsource:
+  category: application
+  product: proxmox
+detection:
+  selection:
+    message|contains: "successful auth for user 'root@pam'"
+  condition: selection
+falsepositives:
+  - Legitimate root@pam logins from the console or admin workstations
+level: medium

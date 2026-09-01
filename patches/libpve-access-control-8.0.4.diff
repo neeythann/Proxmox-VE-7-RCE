@@ -1,0 +1,54 @@
+The complete fix for the tfa-challenge authentication bypass, released in
+libpve-access-control 8.0.4 on 2023-07-20. Three hunks in
+PVE/AccessControl.pm:
+
+  Hunk 1 - FIXME comment noting that $tfa_cfg is now usually never undef
+  Hunk 2 - guard so a missing challenge is rejected when the realm
+           mandates TFA
+  Hunk 3 - removes the `!$keys` early-return in user_get_tfa, closing the
+           bypass: the real priv/tfa.cfg object is always returned and the
+           code falls through to verify_ticket(), which rejects any
+           non-signed tfa-challenge.
+
+Applied against the 8.0.3 source; the third hunk is the security-relevant
+one.
+
+--- a/PVE/AccessControl.pm
++++ b/PVE/AccessControl.pm
+@@ -753,6 +753,9 @@
+     my ($username, $realm, $tfa_response, $tfa_challenge) = @_;
+     my ($tfa_cfg, $realm_tfa) = user_get_tfa($username, $realm);
+ 
++    # FIXME: `$tfa_cfg` is now usually never undef - use cheap check for
++    # whether the user has *any* entries here instead whe it is available in
++    # pve-rs
+     if (!defined($tfa_cfg)) {
+        return undef;
+     }
+@@ -805,6 +808,10 @@
+        $tfa_challenge = undef;
+     } else {
+        $tfa_challenge = $tfa_cfg->authentication_challenge($username);
++
++       die "missing required 2nd keys\n"
++           if $realm_tfa && !defined($tfa_challenge);
++
+        if (defined($tfa_response)) {
+            if (defined($tfa_challenge)) {
+                $tfa_done = 1;
+@@ -1998,14 +2005,10 @@
+     $realm_tfa = PVE::Auth::Plugin::parse_tfa_config($realm_tfa)
+        if $realm_tfa;
+ 
+-    if (!$keys) {
+-       return if !$realm_tfa;
+-       die "missing required 2nd keys\n";
+-    }
+-
+     my $tfa_cfg = cfs_read_file('priv/tfa.cfg');
+     if (defined($keys) && $keys !~ /^x(?:!.*)$/) {
+        add_old_keys_to_realm_tfa($username, $tfa_cfg, $realm_tfa, $keys);
+     }
++
+     return ($tfa_cfg, $realm_tfa);
+ }

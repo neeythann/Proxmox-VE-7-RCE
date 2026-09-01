@@ -1,0 +1,23 @@
+title: Proxmox VE Access Ticket Endpoint Probe
+id: 8f3c1a2e-5b7d-4c9e-9a1f-2d4e6f8a0b1c
+status: experimental
+author: neeythann
+description: >
+  Detects repeated POST requests to /api2/json/access/ticket from a single
+  source IP. A burst of requests with 308/401 responses is characteristic
+  of probing for the tfa-challenge authentication bypass
+  (libpve-access-control <= 8.0.3). The 308 followed by 401 pattern matches
+  re-probing of patched systems.
+logsource:
+  category: webserver
+  product: proxmox
+detection:
+  selection:
+    cs-method: POST
+    cs-uri-stem|startswith: /api2/json/access/ticket
+  condition: selection | count(c-ip) > 5
+  timeframe: 5m
+falsepositives:
+  - Misconfigured clients retrying failed logins
+  - Automated monitoring scripts
+level: medium
